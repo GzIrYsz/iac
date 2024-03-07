@@ -3,8 +3,8 @@
 	<name>iac</name>
 	<comment></comment>
 	<projects>
-		<project>projet</project>
 		<project>receiver</project>
+		<project>transmitter</project>
 	</projects>
 	<buildSpec>
 	</buildSpec>
