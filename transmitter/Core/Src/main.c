@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+
+#include "morse.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -102,7 +104,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  {
+
+  // Text to morse example
+  char text[] = "Hello World!";
+  char *morse = atom(text);
+  morse_to_beep(morse);
+  //char *morse = atom(buf);
+  //morse_to_beep(morse);
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
