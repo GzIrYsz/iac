@@ -81,10 +81,10 @@ local.properties
 .cproject
 
 # STM32 Cube IDE specific
-.mxproject
-.list
-.mk
-.cyclo
+*.mxproject
+*.list
+*.mk
+*.cyclo
 
 # CDT- autotools
 .autotools
