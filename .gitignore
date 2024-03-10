@@ -82,6 +82,9 @@ local.properties
 
 # STM32 Cube IDE specific
 .mxproject
+.list
+.mk
+.cyclo
 
 # CDT- autotools
 .autotools
@@ -146,7 +149,8 @@ local.properties
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
