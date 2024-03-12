@@ -134,7 +134,7 @@ char* atom(const char *input) {
 		strcat(output, "/");
 	}
 
-	for (int i = 0; i < input_len; i++) {
+	for (int i = 1; i < input_len; i++) {
 	    strcat(output, " ");
 		char_index = (int) input[i];
 		if (char_index > 32 && char_index < 127) {
