@@ -22,8 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 
 #include "morse.h"
+#include "utils.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +40,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define BUFFER_LENGTH 140
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -85,7 +87,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  setvbuf(stdin, NULL, _IONBF, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -104,17 +106,16 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  // Text to morse example
-  char text[] = "Hello World!";
-  char *morse = atom(text);
-  morse_to_beep(morse);
-  //char *morse = atom(buf);
-  //morse_to_beep(morse);
+  char buffer[BUFFER_LENGTH];
+  char *morse;
   while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	scanf(" %[^\r]s", buffer);
+	printf("\n");
+	morse = atom(buffer);
+	morse_to_beep(morse);
   }
   /* USER CODE END 3 */
 }
@@ -246,7 +247,7 @@ static void MX_GPIO_Init(void)
 PUTCHAR_PROTOTYPE {
   /* Place your implementation of fputc here */
   /* e.g. write a character to the EVAL_COM1 and Loop until the end of transmission */
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
 
   return ch;
 }
