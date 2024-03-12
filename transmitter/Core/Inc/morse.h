@@ -10,7 +10,7 @@
 /**
  * The duration (in ms) of the elementary rythm.
  */
-#define SHORT_BEEP_LENGTH 100
+#define SHORT_BEEP_LENGTH 50
 
 /**
  * Converts a single character to it's morse representation.
