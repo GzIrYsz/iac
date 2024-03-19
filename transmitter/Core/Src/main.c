@@ -22,6 +22,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
+
+#include "morse.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,11 +39,12 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define BUFFER_LENGTH 140
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
+ACT_GPIO_OUT act_out;
 
 /* USER CODE BEGIN PV */
 
@@ -75,6 +79,9 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
+	act_out.gpio_act = BUZ_GPIO_Port;
+	act_out.pin_act = BUZ_Pin;
+	act_out.type = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -83,7 +90,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  setvbuf(stdin, NULL, _IONBF, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -102,10 +109,16 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  {
+  char buffer[BUFFER_LENGTH];
+  char *morse;
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	scanf(" %[^\r]s", buffer);
+	printf("\n");
+	morse = atom(buffer);
+	morse_to_beep(morse, &act_out);
   }
   /* USER CODE END 3 */
 }
@@ -208,7 +221,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|BUZ_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|BUZ_Pin|IR_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -216,18 +229,36 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD2_Pin BUZ_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|BUZ_Pin;
+  /*Configure GPIO pins : LD2_Pin BUZ_Pin IR_LED_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|BUZ_Pin|IR_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+
+void changeActOut(void){
+	HAL_GPIO_WritePin(act_out.gpio_act, act_out.pin_act, GPIO_PIN_RESET);
+	if(act_out.type){
+		act_out.type = 0;
+		act_out.gpio_act = BUZ_GPIO_Port;
+		act_out.pin_act = BUZ_Pin;
+	}
+	else{
+		act_out.type = 1;
+		act_out.gpio_act = IR_LED_GPIO_Port;
+		act_out.pin_act = IR_LED_Pin;
+	}
+}
 
 /**
   * @brief  Retargets the C library printf function to the USART.
@@ -237,7 +268,7 @@ static void MX_GPIO_Init(void)
 PUTCHAR_PROTOTYPE {
   /* Place your implementation of fputc here */
   /* e.g. write a character to the EVAL_COM1 and Loop until the end of transmission */
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
 
   return ch;
 }
