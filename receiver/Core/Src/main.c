@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#define DOT_THRESHOLD 100 // Durée seuil pour un point (en millisecondes)
+#define DASH_THRESHOLD 300 // Durée seuil pour un tiret (en millisecondes)
+#define SPACE_THRESHOLD 500 // Durée seuil pour une pause entre les caractères (en millisecondes)
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -40,16 +43,57 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+
+uint16_t adc_value;
+
+char morseBuffer[50]; // Tampon pour stocker le message Morse détecté
+uint8_t bufferIndex = 0; // Index actuel du tampon
+
+const char *morseAlphabet[] = {
+    ".-",   // A
+    "-...", // B
+    "-.-.", // C
+    "-..",  // D
+    ".",    // E
+    "..-.", // F
+    "--.",  // G
+    "....", // H
+    "..",   // I
+    ".---", // J
+    "-.-",  // K
+    ".-..", // L
+    "--",   // M
+    "-.",   // N
+    "---",  // O
+    ".--.", // P
+    "--.-", // Q
+    ".-.",  // R
+    "...",  // S
+    "-",    // T
+    "..-",  // U
+    "...-", // V
+    ".--",  // W
+    "-..-", // X
+    "-.--", // Y
+    "--.."  // Z
+};
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-/* USER CODE BEGIN PFP */
+static void MX_ADC1_Init(void);
+static void MX_USART2_UART_Init(void);
 
+/* USER CODE BEGIN PFP */
+void ReadSound(void);
+void interpretMorseMessage(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -85,6 +129,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_ADC1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -94,10 +140,83 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  ReadSound();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
+}
+
+void ReadSound(void)
+{
+  // Variables pour mesurer la durée des tons et des pauses
+  uint32_t toneStartTime = 0;
+  uint32_t toneEndTime = 0;
+  uint32_t pauseStartTime = 0;
+  uint32_t pauseEndTime = 0;
+
+  // Démarre la conversion ADC
+  HAL_ADC_Start(&hadc1);
+
+  // Attend que la conversion soit terminée
+  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+
+  // Lit la valeur ADC
+  adc_value = HAL_ADC_GetValue(&hadc1);
+
+  // Mesure la durée du ton
+  if (adc_value > 1800) {
+    if (toneStartTime == 0) {
+      toneStartTime = HAL_GetTick();
+    }
+  } else {
+    if (toneStartTime != 0) {
+      toneEndTime = HAL_GetTick();
+      uint32_t toneDuration = toneEndTime - toneStartTime;
+      toneStartTime = 0;
+
+      // Détermine si c'est un point, un tiret ou une pause
+      if (toneDuration < DOT_THRESHOLD) {
+        morseBuffer[bufferIndex++] = '.';
+      } else if (toneDuration < DASH_THRESHOLD) {
+        morseBuffer[bufferIndex++] = '-';
+      } else {
+        // Pause détectée, vérifie si c'est une pause entre les caractères ou entre les mots
+        if (pauseStartTime == 0) {
+          pauseStartTime = HAL_GetTick();
+        } else {
+          pauseEndTime = HAL_GetTick();
+          uint32_t pauseDuration = pauseEndTime - pauseStartTime;
+          pauseStartTime = 0;
+
+          if (pauseDuration > SPACE_THRESHOLD) {
+            // Pause entre les mots
+            // Interpréter le message Morse détecté jusqu'à présent
+            interpretMorseMessage();
+          } else {
+            // Pause entre les caractères
+            morseBuffer[bufferIndex++] = ' ';
+          }
+        }
+      }
+    }
+  }
+}
+
+void interpretMorseMessage(void) {
+  morseBuffer[bufferIndex] = '\0'; // Terminer la chaîne Morse
+
+  // Recherche le caractère Morse correspondant dans le tableau morseAlphabet
+  for (int i = 0; i < 26; i++) {
+    if (strcmp(morseBuffer, morseAlphabet[i]) == 0) {
+      // Afficher le caractère correspondant
+      char letter = 'A' + i;
+      HAL_UART_Transmit(&huart2, &letter, 1, HAL_MAX_DELAY);
+      break;
+    }
+  }
+
+  // Réinitialiser le tampon pour le prochain caractère
+  bufferIndex = 0;
 }
 
 /**
@@ -148,45 +267,102 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
-  GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -227,3 +403,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
